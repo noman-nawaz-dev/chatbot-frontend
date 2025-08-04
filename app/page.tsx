@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { ChatSidebar } from "@/components/chat-sidebar"
-import { ChatInterface, ChatInterfaceRef } from "@/components/chat-interface"
+import { MemoizedChatInterface as ChatInterface, ChatInterfaceRef } from "@/components/chat-interface"
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
