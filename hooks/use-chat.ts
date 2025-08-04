@@ -69,7 +69,8 @@ export function useChat() {
           formData.append("files", file)
         })
 
-        const response = await fetch("/api/chat", {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
+        const response = await fetch(`${backendUrl}/chat`, {
           method: "POST",
           body: formData,
         })
