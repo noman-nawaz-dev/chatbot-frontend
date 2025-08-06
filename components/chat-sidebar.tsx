@@ -1,9 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, MessageSquare, History, Settings, HelpCircle, X } from "lucide-react"
+import { Plus, MessageSquare, History, Settings, HelpCircle, X, Loader2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
@@ -13,34 +12,57 @@ interface ChatSidebarProps {
   onToggle: () => void
   onClose: () => void
   onNewChat?: () => void
+  userId: string
 }
 
 interface ChatHistoryItem {
-  id: string
+  sessionId: string
   title: string
-  timestamp: Date
+  created_at: string
 }
 
-export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat }: ChatSidebarProps) {
+export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: ChatSidebarProps) {
   const [isMobile, setIsMobile] = useState(false)
-  const [chatHistory] = useState<ChatHistoryItem[]>([
-    // Mock data - you'll replace this with real data from your backend
-    { id: "1", title: "How to build a React app", timestamp: new Date() },
-    { id: "2", title: "NestJS backend integration", timestamp: new Date(Date.now() - 86400000) },
-    { id: "3", title: "File upload handling", timestamp: new Date(Date.now() - 172800000) },
-    { id: "4", title: "Mobile responsive design", timestamp: new Date(Date.now() - 259200000) },
-    { id: "5", title: "API integration patterns", timestamp: new Date(Date.now() - 345600000) },
-  ])
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-
+    const checkIsMobile = () => setIsMobile(window.innerWidth < 768)
     checkIsMobile()
     window.addEventListener("resize", checkIsMobile)
     return () => window.removeEventListener("resize", checkIsMobile)
   }, [])
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false)
+      setError("User ID is not provided.")
+      return
+    }
+
+    const fetchChatHistory = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat?userId=${userId}`) // Adjust the URL if needed
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch chat history: ${response.statusText}`)
+        }
+
+        const data: ChatHistoryItem[] = await response.json()
+        setChatHistory(data)
+      } catch (err: any) {
+        setError(err.message || "An unknown error occurred.")
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchChatHistory()
+  }, [userId]) // Re-run the effect if the userId changes
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-gray-900 text-white">
@@ -73,32 +95,50 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat }: ChatSideba
 
       {/* Chat History */}
       <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-4 space-y-2">
+        <div className="h-full">
+          <div className="p-4 space-y-1">
             <div className="flex items-center text-sm text-gray-400 mb-3">
               <History className="h-4 w-4 mr-2" />
               Recent Chats
             </div>
+            
+            {/* Conditional Rendering for Loading, Error, and Data states */}
+            {loading && (
+              <div className="flex justify-center items-center p-4">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+              </div>
+            )}
 
-            {chatHistory.map((chat) => (
+            {error && (
+              <div className="text-red-400 bg-red-900/30 p-3 rounded-md flex items-center">
+                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {!loading && !error && chatHistory.length === 0 && (
+              <div className="text-center text-sm text-gray-500 py-4">No recent chats.</div>
+            )}
+
+            {!loading && !error && chatHistory.map((chat) => (
               <Button
-                key={chat.id}
+                key={chat.sessionId} // Use sessionId as the key
                 variant="ghost"
                 className="w-full justify-start text-left hover:bg-gray-800 text-gray-300 hover:text-white p-3 h-auto"
                 onClick={() => {
-                  // This will be handled by the chat interface
+                  // Handle navigating to this specific chat
+                  // e.g., onChatSelect(chat.sessionId)
                   if (isMobile) onClose()
                 }}
               >
                 <MessageSquare className="h-4 w-4 flex-shrink-0 mr-3" />
                 <div className="flex-1 min-w-0">
                   <div className="truncate text-sm font-medium">{chat.title}</div>
-                  {/* <div className="text-xs text-gray-500 mt-1">{chat.timestamp.toLocaleDateString()}</div> */}
                 </div>
               </Button>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       <Separator className="bg-gray-700" />

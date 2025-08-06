@@ -8,6 +8,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const chatInterfaceRef = useRef<ChatInterfaceRef>(null)
 
+  const userId = "demo" 
   const handleNewChat = () => {
     chatInterfaceRef.current?.startNewChat()
   }
@@ -19,6 +20,7 @@ export default function Home() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         onClose={() => setSidebarOpen(false)}
         onNewChat={handleNewChat}
+        userId={userId}
       />
       <main className="flex-1 flex flex-col min-w-0 relative">
         <ChatInterface 
