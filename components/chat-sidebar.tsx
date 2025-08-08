@@ -67,7 +67,7 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
   }, [userId]) // Re-run the effect if the userId changes
 
   const handleChatSelect = (sessionId: string) => {
-    router.push(`/${sessionId}`);
+    router.push(`/${sessionId}`, { scroll: false });
   };
 
   const SidebarContent = () => (
@@ -100,7 +100,7 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
       <Separator className="bg-gray-700" />
 
       {/* Chat History */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto no-scrollbar">
         <div className="h-full">
           <div className="p-4 space-y-1">
             <div className="flex items-center text-sm text-gray-400 mb-3">

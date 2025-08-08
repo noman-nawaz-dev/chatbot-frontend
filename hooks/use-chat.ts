@@ -48,7 +48,7 @@ export function useChat(initialSessionId?: string) {
         if (!response.ok) {
           // If a session is not found, redirect to a new chat
           console.error("Session not found, starting a new chat.")
-          router.push("/")
+          router.push("/", { scroll: false })
           return
         }
 
@@ -72,7 +72,7 @@ export function useChat(initialSessionId?: string) {
         setSessionId(data.sessionId)
       } catch (error) {
         console.error("Error fetching chat history:", error)
-        router.push("/") // On error, navigate to a fresh chat
+        router.push("/", { scroll: false }) // On error, navigate to a fresh chat
       } finally {
         setIsInitializing(false)
       }
@@ -97,7 +97,7 @@ export function useChat(initialSessionId?: string) {
 
   // Function to navigate to the root for a new chat
   const startNewChat = useCallback(() => {
-    router.push("/")
+    router.push("/", { scroll: false })
   }, [router])
 
   const sendMessage = useCallback(

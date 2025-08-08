@@ -21,7 +21,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} overflow-hidden`} suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          {children}
+          <div className="min-h-screen flex flex-col">
+            {children}
+            <div className="h-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} />
+          </div>
         </ThemeProvider>
       </body>
     </html>

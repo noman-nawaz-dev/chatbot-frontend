@@ -453,7 +453,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
               )}
               {/* Show center page loader during initialization to avoid welcome UI flicker */}
               {isInitializing && !input && (
-                <div className="flex justify-center items-center h-screen">
+                <div className="flex justify-center items-center h-[calc(100vh-140px)]">
                   <Loader2 className="h-16 w-16 animate-spin text-gray-500" />
                   <div className="text-gray-500 dark:text-gray-400 text-sm md:text-base">
                     Loading History...
