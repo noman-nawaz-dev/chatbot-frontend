@@ -4,8 +4,9 @@ import { useState, useEffect } from "react"
 import { Plus, MessageSquare, History, Settings, HelpCircle, X, Loader2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 
 interface ChatSidebarProps {
   isOpen: boolean
@@ -22,6 +23,7 @@ interface ChatHistoryItem {
 }
 
 export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: ChatSidebarProps) {
+  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +65,10 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
 
     fetchChatHistory()
   }, [userId]) // Re-run the effect if the userId changes
+
+  const handleChatSelect = (sessionId: string) => {
+    router.push(`/${sessionId}`);
+  };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-gray-900 text-white">
@@ -126,8 +132,7 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
                 variant="ghost"
                 className="w-full justify-start text-left hover:bg-gray-800 text-gray-300 hover:text-white p-3 h-auto"
                 onClick={() => {
-                  // Handle navigating to this specific chat
-                  // e.g., onChatSelect(chat.sessionId)
+                  handleChatSelect(chat.sessionId)
                   if (isMobile) onClose()
                 }}
               >
@@ -161,6 +166,7 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
     return (
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent side="left" className="p-0 w-80 border-0">
+          <SheetTitle></SheetTitle>
           <SidebarContent />
         </SheetContent>
       </Sheet>

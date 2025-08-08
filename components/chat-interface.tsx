@@ -16,6 +16,7 @@ import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism"
 
 interface ChatInterfaceProps {
   onToggleSidebar: () => void
+  sessionId?: string
 }
 
 interface Message {
@@ -306,7 +307,7 @@ const ChatInput = memo(({
 ChatInput.displayName = "ChatInput";
 
 export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
-  ({ onToggleSidebar }, ref) => {
+  ({ onToggleSidebar, sessionId }, ref) => {
     const [input, setInput] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [isAtBottom, setIsAtBottom] = useState(true);
@@ -316,7 +317,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const wasAtBottomRef = useRef(true);
 
-    const { messages, isLoading, sendMessage, startNewChat } = useChat();
+    const { messages, isLoading, isInitializing, sendMessage, startNewChat, title } = useChat(sessionId);
+    const isBusy = isLoading || isInitializing;
 
     useImperativeHandle(ref, () => ({
       startNewChat
@@ -414,8 +416,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
             <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="md:hidden">
               <Menu className="h-5 w-5" />
             </Button>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {messages.length === 0 ? "New Chat" : "Chat Session"}
+             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {title}
             </h2>
           </div>
         </div>
@@ -426,7 +428,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           className="flex-1 overflow-y-auto bg-white dark:bg-gray-900"
         >
           <div className="w-full max-w-5xl mx-auto px-4 py-6">
-            {messages.length === 0 && welcomeContent}
+            {messages.length === 0 && !isInitializing && welcomeContent}
 
             <div className="space-y-4 md:space-y-6">
               {messages.map((message) => (
@@ -436,7 +438,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                 />
               ))}
 
-              {isLoading && (
+              {/* Show streaming 'Thinking...' only when not initializing history */}
+              {isLoading && !isInitializing && (
                 <div className="flex justify-start">
                   <div className="max-w-[85%] md:max-w-[90%] lg:max-w-[85%] xl:max-w-[80%] bg-gray-100 dark:bg-gray-800 rounded-lg px-3 md:px-4 py-2 md:py-3">
                     <div className="flex items-center space-x-2">
@@ -446,6 +449,15 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                       </span>
                     </div>
                   </div>
+                </div>
+              )}
+              {/* Show center page loader during initialization to avoid welcome UI flicker */}
+              {isInitializing && !input && (
+                <div className="flex justify-center items-center h-screen">
+                  <Loader2 className="h-16 w-16 animate-spin text-gray-500" />
+                  <div className="text-gray-500 dark:text-gray-400 text-sm md:text-base">
+                    Loading History...
+                    </div>
                 </div>
               )}
             </div>
@@ -473,7 +485,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
               setInput={setInput}
               handleSubmit={handleSubmit}
               handleKeyDown={handleKeyDown}
-              isLoading={isLoading}
+              isLoading={isBusy}
               files={files}
               setFiles={setFiles}
               fileInputRef={fileInputRef}

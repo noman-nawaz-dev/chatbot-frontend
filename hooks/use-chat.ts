@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react"
+import { useRouter } from "next/navigation"
 
+// Interfaces remain the same
 interface Message {
   id: string
   role: "user" | "assistant"
@@ -10,47 +12,107 @@ interface Message {
   files?: File[]
 }
 
+interface ChatHistory {
+  sessionId: string;
+  title: string;
+  history: {
+    timestamp: string;
+    userMessage: string;
+    llmResponse: string;
+  }[];
+}
+
 interface StreamInitiateResponse {
   streamId: string
 }
 
-export function useChat() {
+export function useChat(initialSessionId?: string) {
   const [messages, setMessages] = useState<Message[]>([])
+  const [title, setTitle] = useState<string>("New Chat")
   const [isLoading, setIsLoading] = useState(false)
-  const [sessionId, setSessionId] = useState<string | null>(null)
+  // isInitializing indicates we are fetching chat history for an existing session
+  // and should not show the "Thinking..." streaming indicator
+  const [isInitializing, setIsInitializing] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const router = useRouter()
 
-  const startNewChat = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
+  // This effect handles loading history for existing chats
+  useEffect(() => {
+    const fetchChatHistory = async (sid: string) => {
+      setIsInitializing(true)
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
+        const response = await fetch(`${backendUrl}/chat/${sid}`)
+
+        if (!response.ok) {
+          // If a session is not found, redirect to a new chat
+          console.error("Session not found, starting a new chat.")
+          router.push("/")
+          return
+        }
+
+        const data: ChatHistory = await response.json()
+        const chatMessages: Message[] = data.history.flatMap((item, index) => [
+          {
+            id: `user_${item.timestamp}_${index}`,
+            role: "user",
+            content: item.userMessage,
+            timestamp: new Date(item.timestamp),
+          },
+          {
+            id: `assistant_${item.timestamp}_${index}`,
+            role: "assistant",
+            content: item.llmResponse,
+            timestamp: new Date(item.timestamp),
+          },
+        ])
+        setMessages(chatMessages)
+        setTitle(data.title)
+        setSessionId(data.sessionId)
+      } catch (error) {
+        console.error("Error fetching chat history:", error)
+        router.push("/") // On error, navigate to a fresh chat
+      } finally {
+        setIsInitializing(false)
+      }
     }
 
-    const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    setSessionId(newSessionId)
-    setMessages([])
-    console.log("Started new chat with sessionId:", newSessionId)
-  }, [])
+    if (initialSessionId) {
+      fetchChatHistory(initialSessionId)
+    } else {
+        // We are on the root page for a new chat, reset state.
+        setTitle('New Chat')
+        setMessages([])
+        setSessionId(null)
+    }
 
-  useEffect(() => {
+    // Cleanup function to close EventSource connection
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
       }
     }
-  }, [])
+  }, [initialSessionId, router])
 
-  useEffect(() => {
-    if (!sessionId) {
-      startNewChat()
-    }
-  }, [sessionId, startNewChat])
+  // Function to navigate to the root for a new chat
+  const startNewChat = useCallback(() => {
+    router.push("/")
+  }, [router])
 
   const sendMessage = useCallback(
     async (content: string, files: File[] = []) => {
       if (!content.trim() && files.length === 0) return
-
       setIsLoading(true)
+
+      let currentSessionId = sessionId
+      
+      // If there's no sessionId, this is the first message of a new chat.
+      if (!currentSessionId) {
+        const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        setSessionId(newSessionId)
+        currentSessionId = newSessionId
+      }
 
       const userMessage: Message = {
         id: `user_${Date.now()}`,
@@ -72,7 +134,7 @@ export function useChat() {
       try {
         const formData = new FormData()
         formData.append("message", content)
-        if (sessionId) formData.append("sessionId", sessionId)
+        formData.append("sessionId", currentSessionId!)
         files.forEach((file) => formData.append("files", file))
 
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
@@ -89,7 +151,7 @@ export function useChat() {
         const { streamId }: StreamInitiateResponse = await response.json()
         const eventSource = new EventSource(`${backendUrl}/chat/stream/${streamId}`)
         eventSourceRef.current = eventSource
-
+        setIsLoading(false)
         eventSource.onmessage = (event) => {
           const data = JSON.parse(event.data)
           if (data.chunk) {
@@ -103,19 +165,14 @@ export function useChat() {
           }
         }
 
-        // --- FIX 1: Correctly handle the end of the stream ---
-        eventSource.onerror = (err) => {
-          // This event fires when the stream is closed by the server, which is normal.
-          // We don't need to log it as a critical error.
-          console.log("EventSource stream closed.");
+        eventSource.onerror = () => {
           eventSource.close()
           eventSourceRef.current = null
-          setIsLoading(false) // Set loading to false when the stream ends.
+          setIsLoading(false)
         }
-        
       } catch (error) {
         console.error("Error sending message:", error)
-        const errorMessageContent = error instanceof Error ? error.message : "Sorry, an unknown error occurred."
+        const errorMessageContent = error instanceof Error ? error.message : "An unknown error occurred."
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessagePlaceholder.id
@@ -126,17 +183,18 @@ export function useChat() {
         setIsLoading(false)
       }
     },
-    [sessionId],
+    [sessionId, router],
   )
 
-  // Memoize the return value to prevent unnecessary re-renders
   const chatState = useMemo(() => ({
     messages,
     isLoading,
+    isInitializing,
     sendMessage,
     sessionId,
     startNewChat,
-  }), [messages, isLoading, sendMessage, sessionId, startNewChat])
+    title
+  }), [messages, isLoading, isInitializing, sendMessage, sessionId, startNewChat, title])
 
   return chatState
 }
