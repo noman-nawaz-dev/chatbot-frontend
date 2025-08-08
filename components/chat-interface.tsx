@@ -416,19 +416,21 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
     return (
       <div className="flex flex-col h-full w-full relative">
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900 z-10">
-          <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="hidden md:flex">
-            <Menu className="h-5 w-5" />
-          </Button>
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="md:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleSidebar}
+              className="md:hidden"
+            >
               <Menu className="h-5 w-5" />
             </Button>
-             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {title}
-            </h2>
           </div>
-        </div>
 
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {title}
+          </h2>
+        </div>
         <div
           ref={chatAreaRef}
           onScroll={handleScroll}

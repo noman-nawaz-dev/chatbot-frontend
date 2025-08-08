@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 // Interfaces remain the same
 interface Message {
@@ -36,6 +37,7 @@ export function useChat(initialSessionId?: string) {
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null)
   const eventSourceRef = useRef<EventSource | null>(null)
   const router = useRouter()
+  const { user } = useAuth()
 
   // This effect handles loading history for existing chats
   useEffect(() => {
@@ -95,8 +97,23 @@ export function useChat(initialSessionId?: string) {
     }
   }, [initialSessionId, router])
 
-  // Function to navigate to the root for a new chat
+  // Function to navigate to the root for a new chat and reset local chat state
   const startNewChat = useCallback(() => {
+    try {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    setMessages([])
+    setSessionId(null)
+    setTitle("New Chat")
+    setIsLoading(false)
+    setIsInitializing(false)
+
     router.push("/", { scroll: false })
   }, [router])
 
@@ -135,6 +152,8 @@ export function useChat(initialSessionId?: string) {
         const formData = new FormData()
         formData.append("message", content)
         formData.append("sessionId", currentSessionId!)
+        const effectiveUserId = user?.id ?? "demo"
+        formData.append("userId", effectiveUserId)
         files.forEach((file) => formData.append("files", file))
 
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"
@@ -183,7 +202,7 @@ export function useChat(initialSessionId?: string) {
         setIsLoading(false)
       }
     },
-    [sessionId, router],
+    [sessionId, router, user?.id],
   )
 
   const chatState = useMemo(() => ({

@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Plus, MessageSquare, History, Settings, HelpCircle, X, Loader2, AlertCircle } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Plus, MessageSquare, History, X, Loader2, AlertCircle, LogIn, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 interface ChatSidebarProps {
   isOpen: boolean
@@ -24,6 +25,7 @@ interface ChatHistoryItem {
 
 export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: ChatSidebarProps) {
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const [isMobile, setIsMobile] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,39 +38,51 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
     return () => window.removeEventListener("resize", checkIsMobile)
   }, [])
 
-  useEffect(() => {
-    if (!userId) {
+  const fetchChatHistory = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat?userId=${user.id}`)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch chat history: ${response.statusText}`)
+      }
+
+      const data: ChatHistoryItem[] = await response.json()
+      setChatHistory(data)
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred.")
+      console.error(err)
+    } finally {
       setLoading(false)
-      setError("User ID is not provided.")
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      setError(null)
+      setChatHistory([])
       return
     }
-
-    const fetchChatHistory = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat?userId=${userId}`) // Adjust the URL if needed
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch chat history: ${response.statusText}`)
-        }
-
-        const data: ChatHistoryItem[] = await response.json()
-        setChatHistory(data)
-      } catch (err: any) {
-        setError(err.message || "An unknown error occurred.")
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchChatHistory()
-  }, [userId]) // Re-run the effect if the userId changes
+  }, [user, fetchChatHistory])
 
   const handleChatSelect = (sessionId: string) => {
     router.push(`/${sessionId}`, { scroll: false });
   };
+
+  const handleClick = () => {
+    if (user) {
+      onNewChat?.()
+      // Immediately try to refresh history after starting a new chat
+      fetchChatHistory()
+      if (isMobile) onClose()
+    } else {
+      router.push("/auth")
+    }
+  }
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-gray-900 text-white">
@@ -84,18 +98,24 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
 
       {/* New Chat Button */}
       <div className="p-4">
-        <Button
-          onClick={() => {
-            onNewChat?.()
-            if (isMobile) onClose()
-          }}
-          className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600"
-          variant="outline"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Chat
-        </Button>
-      </div>
+      <Button
+        onClick={handleClick}
+        className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 cursor-pointer"
+        variant="outline"
+      >
+        {user ? (
+          <>
+            <Plus className="h-4 w-4 mr-2" />
+            New Chat
+          </>
+        ) : (
+          <>
+            <LogIn className="h-4 w-4 mr-2" />
+            Sign In
+          </>
+        )}
+      </Button>
+    </div>
 
       <Separator className="bg-gray-700" />
 
@@ -109,28 +129,28 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
             </div>
             
             {/* Conditional Rendering for Loading, Error, and Data states */}
-            {loading && (
+            {loading && user && (
               <div className="flex justify-center items-center p-4">
                 <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
               </div>
             )}
 
-            {error && (
+            {error && user && (
               <div className="text-red-400 bg-red-900/30 p-3 rounded-md flex items-center">
                 <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
 
-            {!loading && !error && chatHistory.length === 0 && (
+            {!loading && user && !error && chatHistory.length === 0 && (
               <div className="text-center text-sm text-gray-500 py-4">No recent chats.</div>
             )}
 
-            {!loading && !error && chatHistory.map((chat) => (
+            {user && !loading && !error && chatHistory.map((chat) => (
               <Button
                 key={chat.sessionId} // Use sessionId as the key
                 variant="ghost"
-                className="w-full justify-start text-left hover:bg-gray-800 text-gray-300 hover:text-white p-3 h-auto"
+                className="w-full justify-start text-left hover:bg-gray-800 text-gray-300 hover:text-white p-3 h-auto cursor-pointer"
                 onClick={() => {
                   handleChatSelect(chat.sessionId)
                   if (isMobile) onClose()
@@ -142,6 +162,12 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
                 </div>
               </Button>
             ))}
+
+            {!user && (
+              <div className="text-center text-sm text-gray-400 py-4">
+                Sign in to see your chat history.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -149,15 +175,20 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
       <Separator className="bg-gray-700" />
 
       {/* Footer */}
-      <div className="p-4 space-y-2">
-        <Button variant="ghost" className="w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white">
-          <Settings className="h-4 w-4 mr-3" />
-          Settings
-        </Button>
-        <Button variant="ghost" className="w-full justify-start text-gray-300 hover:bg-gray-800 hover:text-white">
-          <HelpCircle className="h-4 w-4 mr-3" />
-          Help
-        </Button>
+      <div className="p-4">
+        {user && (
+          <Button
+            className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 cursor-pointer"
+            variant="outline"
+            onClick={() => {
+              signOut()
+              if (isMobile) onClose()
+            }}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign out
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -176,8 +207,7 @@ export function ChatSidebar({ isOpen, onToggle, onClose, onNewChat, userId }: Ch
   return (
     <div
       className={cn(
-        "transition-all duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700",
-        isOpen ? "w-80" : "w-0 overflow-hidden",
+        "transition-all duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 w-80",
       )}
     >
       <SidebarContent />
