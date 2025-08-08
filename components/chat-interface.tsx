@@ -432,7 +432,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
         <div
           ref={chatAreaRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto bg-white dark:bg-gray-900"
+          className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 pb-28 md:pb-0"
         >
           <div className="w-full max-w-5xl mx-auto px-4 py-6">
             {messages.length === 0 && !isInitializing && welcomeContent}
@@ -474,7 +474,10 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           </div>
         )}
 
-        <div className="z-10 shrink-0">
+        <div
+          className="z-20 fixed bottom-0 left-0 right-0 md:sticky md:bottom-0"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
             <ChatInput
               input={input}
               setInput={setInput}
