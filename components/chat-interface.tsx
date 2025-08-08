@@ -186,14 +186,21 @@ const MessageComponent = memo(({
           </Button>
         )}
 
-        <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none">
-          <ReactMarkdown
-            linkTarget="_blank"
-            components={markdownComponents}
-          >
-            {message.content}
-          </ReactMarkdown>
-        </div>
+        {message.role === "assistant" && message.content.trim().length === 0 ? (
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-gray-600 dark:text-gray-400 text-sm md:text-base">Thinking...</span>
+          </div>
+        ) : (
+          <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none">
+            <ReactMarkdown
+              linkTarget="_blank"
+              components={markdownComponents}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {message.files && message.files.length > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-600 space-y-1">
@@ -233,7 +240,7 @@ const ChatInput = memo(({
   fileInputRef: React.RefObject<HTMLInputElement | null>
 }) => {
   return (
-    <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 md:p-4">
+    <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 md:p-4 sticky bottom-0 left-0 right-0">
       <div className="w-full max-w-5xl mx-auto">
         {files.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
@@ -438,19 +445,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                 />
               ))}
 
-              {/* Show streaming 'Thinking...' only when not initializing history */}
-              {isLoading && !isInitializing && (
-                <div className="flex justify-start">
-                  <div className="max-w-[85%] md:max-w-[90%] lg:max-w-[85%] xl:max-w-[80%] bg-gray-100 dark:bg-gray-800 rounded-lg px-3 md:px-4 py-2 md:py-3">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-gray-600 dark:text-gray-400 text-sm md:text-base">
-                        Thinking...
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Inline streaming loader shown inside assistant placeholder bubble */}
               {/* Show center page loader during initialization to avoid welcome UI flicker */}
               {isInitializing && !input && (
                 <div className="flex justify-center items-center h-[calc(100vh-140px)]">
@@ -479,7 +474,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           </div>
         )}
 
-        <div className="z-10">
+        <div className="z-10 shrink-0">
             <ChatInput
               input={input}
               setInput={setInput}
