@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "AI Chat",
-  description: "A beautiful AI chat application",
+  description: "An AI chat application that can understand text, images, and documents in real time",
     generator: 'v0.1.0'
 }
 
